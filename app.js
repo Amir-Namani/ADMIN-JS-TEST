@@ -3,27 +3,53 @@ import AdminJSExpress from '@adminjs/express'
 import express from 'express'
 import { Database, Resource, getModelByName } from '@adminjs/prisma'
 import { PrismaClient } from '@prisma/client'
+import { DefaultAuthProvider } from 'adminjs';
+import componentLoader from 'adminjs'
 
+
+
+const PORT = 3000
 
 const prisma = new PrismaClient()
 
 AdminJS.registerAdapter({ Database, Resource })
-const PORT = 3000
 
 const start = async () => {
     
   const adminOptions = {
     resources: [{
         resource: { model: getModelByName('User'), client: prisma },
-        options: {password: {isVisible: false} }
+        options: {}
     }]}
 
 
   const app = express()
 
   const admin = new AdminJS(adminOptions)
+  
+  const authenticate = ({ email, password }, ctx) => {
+    return { email,password };
+  }
 
-  const adminRouter = AdminJSExpress.buildRouter(admin)
+  const authProvider = new DefaultAuthProvider({
+    componentLoader,
+    authenticate,
+  });
+
+  const adminRouter = AdminJSExpress.buildAuthenticatedRouter(
+    admin,
+    {
+      // "authenticate" was here
+      cookiePassword: 'test',
+      provider: authProvider,
+    },
+    null,
+    {
+      secret: 'test',
+      resave: false,
+      saveUninitialized: true,
+    }
+  );
   app.use(admin.options.rootPath, adminRouter)
 
   app.listen(PORT, () => {
